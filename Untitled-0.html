@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>L5L4ess Lol</title>
+    <style>
+        body {
+            background-color: #222;
+            color: white;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h1 { margin-bottom: 5px; font-size: 24px; }
+        #status { margin-bottom: 15px; font-size: 18px; color: #aaa; }
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 4px solid #444;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+        }
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        .light { background-color: #f0d9b5; }
+        .dark { background-color: #b58863; }
+        .selected { background-color: #7ab356 !important; }
+        .valid-move { background-color: #bae0a8 !important; }
+        .piece { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
+        .player1 { color: #ffffff; text-shadow: 0 2px 4px rgba(0,0,0,0.6); font-weight: bold; }
+        .player2 { color: #ff4444; text-shadow: 0 2px 4px rgba(0,0,0,0.6); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>L5L4ess Lol</h1>
+    <div id="status">Player 1's Turn (L4)</div>
+    <div id="board"></div>
+
+    <script>
+        // Bulletproof matrix setup that won't break or glitch
+        let boardState = [];
+        
+        function initMatrix() {
+            // Row 0 (Top): 8 L5 pieces
+            boardState.push([2, 2, 2, 2, 2, 2, 2, 2]);
+            // Row 1: Empty
+            boardState.push([2, 2, 2, 2, 2, 2, 2, 2]);
+            // Row 2: Empty
+            boardState.push([0, 0, 0, 0, 0, 0, 0, 0]);
+            // Row 3: Empty
+            boardState.push([0, 0, 0, 0, 0, 0, 0, 0]);
+            // Row 4: Empty
+            boardState.push([0, 0, 0, 0, 0, 0, 0, 0]);
+            // Row 5: Empty
+            boardState.push([0, 0, 0, 0, 0, 0, 0, 0]);
+            // Row 6: Empty
+            boardState.push([1, 1, 1, 1, 1, 1, 1, 1]);
+            // Row 7 (Bottom): 8 L4 pieces
+            boardState.push([1, 1, 1, 1, 1, 1, 1, 1]);
+        }
+        
+        initMatrix();
+        
+        let turn = 1; 
+        let selectedSquare = null;
+        const boardEl = document.getElementById('board');
+        const statusEl = document.getElementById('status');
+
+        function createBoard() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const square = document.createElement('div');
+                    square.classList.add('square');
+                    square.classList.add((r + c) % 2 === 0 ? 'light' : 'dark');
+                    square.dataset.row = r;
+                    square.dataset.col = c;
+
+                    const pieceType = boardState[r][c];
+                    if (pieceType !== 0) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece', pieceType === 1 ? 'player1' : 'player2');
+                        piece.innerHTML = pieceType === 1 ? 'L4' : 'L5';
+                        square.appendChild(piece);
+                    }
+
+                    if (selectedSquare && selectedSquare.row === r && selectedSquare.col === c) {
+                        square.classList.add('selected');
+                    }
+
+                    // Highlight valid moves around the selected piece
+                    if (selectedSquare) {
+                        const rowDiff = Math.abs(r - selectedSquare.row);
+                        const colDiff = Math.abs(c - selectedSquare.col);
+                        if (rowDiff <= 1 && colDiff <= 1 && (rowDiff > 0 || colDiff > 0)) {
+                            if (boardState[r][c] !== turn) {
+                                square.classList.add('valid-move');
+                            }
+                        }
+                    }
+
+                    square.addEventListener('click', () => handleSquareClick(r, c));
+                    boardEl.appendChild(square);
+                }
+            }
+        }
+
+        function handleSquareClick(r, c) {
+            const clickedPiece = boardState[r][c];
+
+            if (selectedSquare) {
+                if (clickedPiece === turn) {
+                    selectedSquare = { row: r, col: c };
+                    createBoard();
+                    return;
+                }
+
+                const rowDiff = Math.abs(r - selectedSquare.row);
+                const colDiff = Math.abs(c - selectedSquare.col);
+
+                if (rowDiff <= 1 && colDiff <= 1 && (rowDiff > 0 || colDiff > 0)) {
+                    boardState[r][c] = turn;
+                    boardState[selectedSquare.row][selectedSquare.col] = 0;
+                    selectedSquare = null;
+                    
+                    turn = turn === 1 ? 2 : 1;
+                    statusEl.innerText = turn === 1 ? "Player 1's Turn (L4)" : "Player 2's Turn (L5)";
+                    
+                    checkWinCondition();
+                } else {
+                    selectedSquare = null;
+                }
+            } else {
+                if (clickedPiece === turn) {
+                    selectedSquare = { row: r, col: c };
+                }
+            }
+            createBoard();
+        }
+
+        function checkWinCondition() {
+            let p1Count = 0;
+            let p2Count = 0;
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (boardState[r][c] === 1) p1Count++;
+                    if (boardState[r][c] === 2) p2Count++;
+                }
+            }
+            if (p1Count === 0) {
+                statusEl.innerHTML = "<strong style='color:#ff4444'>Player 2 (L5) Wins!</strong>";
+                turn = 0; 
+            } else if (p2Count === 0) {
+                statusEl.innerHTML = "<strong style='color:#7ab356'>Player 1 (L4) Wins!</strong>";
+                turn = 0;
+            }
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
